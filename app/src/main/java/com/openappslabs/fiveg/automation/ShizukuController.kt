@@ -106,10 +106,6 @@ object ShizukuController {
             return
         }
         try {
-            if (Shizuku.isPre_V11()) {
-                Log.w(TAG, "Shizuku pre-v11 is not supported")
-                return
-            }
             Shizuku.requestPermission(PERMISSION_REQUEST_CODE)
         } catch (e: Throwable) {
             Log.e(TAG, "Error requesting Shizuku permission: ${e.message}", e)
@@ -167,7 +163,20 @@ object ShizukuController {
 
     private fun executeShell(command: String): String {
         return try {
-            val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+            val clazz = Class.forName("rikka.shizuku.Shizuku")
+            val newProcessMethod = clazz.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            newProcessMethod.isAccessible = true
+            val process = newProcessMethod.invoke(
+                null,
+                arrayOf("sh", "-c", command),
+                null,
+                null
+            ) as Process
             val output = process.inputStream.bufferedReader().use { it.readText() }
             process.waitFor()
             output.trim()
