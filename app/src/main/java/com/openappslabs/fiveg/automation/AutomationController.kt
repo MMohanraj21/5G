@@ -238,19 +238,19 @@ object AutomationController {
             ComponentName("com.android.phone", "com.android.phone.RadioInfo")
         )
 
-        for (component in candidates) {
+        for (targetComponent in candidates) {
             try {
                 val intent = Intent(Intent.ACTION_MAIN).apply {
-                    component = component
+                    component = targetComponent
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                             Intent.FLAG_ACTIVITY_CLEAR_TOP or
                             Intent.FLAG_ACTIVITY_NO_ANIMATION
                 }
                 context.startActivity(intent)
-                Log.d(TAG, "Successfully launched RadioInfo via $component")
+                Log.d(TAG, "Successfully launched RadioInfo via $targetComponent")
                 return true
             } catch (e: Exception) {
-                Log.d(TAG, "Component $component not available: ${e.message}")
+                Log.d(TAG, "Component $targetComponent not available: ${e.message}")
             }
         }
 

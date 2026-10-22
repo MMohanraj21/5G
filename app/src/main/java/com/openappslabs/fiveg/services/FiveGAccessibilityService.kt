@@ -45,8 +45,7 @@ class FiveGAccessibilityService : AccessibilityService() {
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             packageNames = arrayOf("com.android.phone", "com.android.settings")
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.FLAG_DEFAULT or
-                    AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
+            flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                     AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
             notificationTimeout = 50
         }
@@ -85,7 +84,6 @@ class FiveGAccessibilityService : AccessibilityService() {
                 val spinner = findPreferredNetworkSpinner(rootNode)
                 if (spinner != null) {
                     Log.d(TAG, "Found preferred network Spinner. Clicking to open dropdown...")
-                    spinner.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)
                     if (performClick(spinner)) {
                         stage = AutomationStage.CLICKED_SPINNER
                         lastSpinnerClickTime = System.currentTimeMillis()
