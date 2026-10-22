@@ -53,6 +53,8 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
+        </service>
+
         <!-- Shizuku Provider for elevated shell automation -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
