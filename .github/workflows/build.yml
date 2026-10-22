@@ -43,14 +43,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v2.1.0
-          name: "5G NR 1-Second Auto-Switcher v2.1.0"
+          tag_name: v2.1.1
+          name: "5G NR 1-Second Auto-Switcher v2.1.1"
           body: |
-            ## ⚡ 5G NR 1-Second Auto-Switcher v2.1.0 (Shizuku & Dual Engine)
-            - **Shizuku Silent Engine (New)**: 50ms invisible background switching without opening RadioInfo!
-            - **Specific Engine Chooser (New)**: Choose between Auto (Smart Fallback), Shizuku Only, or Accessibility Only.
-            - **Accessibility Service Engine**: 1-Second automated RadioInfo switcher for phones without Shizuku.
-            - **1-Tap Quick Settings Tile**: Silent background toggle with Shizuku support.
+            ## ⚡ 5G NR 1-Second Auto-Switcher v2.1.1
+            - **Shizuku ITelephony & Binder Wrapper**: Native elevated telephony IPC for 5G NR locking.
+            - **1-Tap Enable Accessibility via Shizuku**: Automatically grants and enables Accessibility Service without digging through system menus.
+            - **Seamless Auto Fallback**: If device modem rejects direct shell changes, auto-switches via 1-second Accessibility engine.
+            - **Specific Engine Selector**: Choose between Auto (Smart Fallback), Shizuku Only, or Accessibility Only.
             - **Jetpack Compose Material 3 Dynamic Colors** (Android 10 - 14 / API 29 - 34).
             
             ### 📲 Installation:

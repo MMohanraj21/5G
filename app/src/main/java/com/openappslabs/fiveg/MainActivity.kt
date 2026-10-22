@@ -152,7 +152,7 @@ fun MainScreen() {
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Text(
-                                text = "v2.1.0",
+                                text = "v2.1.1",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -194,6 +194,10 @@ fun MainScreen() {
                 },
                 onRequestShizukuPermission = {
                     activity?.let { ShizukuController.requestPermission(it) }
+                },
+                onAutoEnableAccessibilityViaShizuku = {
+                    ShizukuController.enableAccessibilityServiceViaShizuku(context)
+                    AutomationController.checkAccessibilityEnabled(context)
                 },
                 onOpenAccessibilitySettings = {
                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
@@ -252,6 +256,7 @@ fun SpecificEngineSelectorCard(
     isAccessibilityEnabled: Boolean,
     onEngineSelected: (EngineMode) -> Unit,
     onRequestShizukuPermission: () -> Unit,
+    onAutoEnableAccessibilityViaShizuku: () -> Unit,
     onOpenAccessibilitySettings: () -> Unit
 ) {
     ElevatedCard(
@@ -315,44 +320,58 @@ fun SpecificEngineSelectorCard(
                 onClick = { onEngineSelected(EngineMode.A11Y_ONLY) }
             )
 
-            // Dynamic Action / Setup Button based on selected engine
-            when (selectedEngine) {
-                EngineMode.SHIZUKU_ONLY, EngineMode.AUTO -> {
-                    if (shizukuState.isRunning && !shizukuState.isPermissionGranted) {
-                        Button(
-                            onClick = onRequestShizukuPermission,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Grant Shizuku Permission")
-                        }
-                    } else if (!shizukuState.isRunning && selectedEngine == EngineMode.SHIZUKU_ONLY) {
-                        Text(
-                            text = "⚠️ Shizuku service is not running. Please open the Shizuku app and start it via Wireless Debugging, or select Auto mode.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.error)
-                        )
-                    }
+            // Shizuku Permission Request Button if running but permission not granted
+            if (shizukuState.isRunning && !shizukuState.isPermissionGranted) {
+                Button(
+                    onClick = onRequestShizukuPermission,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Grant Shizuku Permission")
                 }
+            }
 
-                EngineMode.A11Y_ONLY -> {
-                    if (!isAccessibilityEnabled) {
-                        Button(
-                            onClick = onOpenAccessibilitySettings,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("Enable Auto-Switch Accessibility Service")
-                        }
+            // Accessibility Enable Section (Shown when Accessibility is not enabled)
+            if (!isAccessibilityEnabled) {
+                if (shizukuState.isRunning && shizukuState.isPermissionGranted) {
+                    // Shizuku is connected: can enable accessibility in 1-tap without opening system settings!
+                    Button(
+                        onClick = onAutoEnableAccessibilityViaShizuku,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Green5G
+                        )
+                    ) {
+                        Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("⚡ 1-Tap Enable Accessibility (via Shizuku)")
+                    }
+                } else if (selectedEngine == EngineMode.A11Y_ONLY || selectedEngine == EngineMode.AUTO) {
+                    Button(
+                        onClick = onOpenAccessibilitySettings,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Enable Auto-Switch Accessibility Service")
                     }
                 }
+            }
+
+            // Guidance when Shizuku Only is selected
+            if (selectedEngine == EngineMode.SHIZUKU_ONLY) {
+                Text(
+                    text = "💡 Note: On some devices (Realme/OnePlus/Oppo/Xiaomi), the manufacturer modem blocks direct shell commands. If silent mode fails on your phone, choose 'Auto (Smart Fallback)' or 'Accessibility Engine'.",
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                )
             }
         }
     }

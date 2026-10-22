@@ -179,6 +179,14 @@ object AutomationController {
 
             EngineMode.A11Y_ONLY -> {
                 if (!checkAccessibilityEnabled(context)) {
+                    val sState = ShizukuController.checkState(context)
+                    if (sState.isRunning && sState.isPermissionGranted) {
+                        ShizukuController.enableAccessibilityServiceViaShizuku(context)
+                        try { Thread.sleep(300) } catch (_: Exception) {}
+                        checkAccessibilityEnabled(context)
+                    }
+                }
+                if (!checkAccessibilityEnabled(context)) {
                     _automationStatus.value = AutomationStatus.Error("Accessibility Service is disabled. Please enable it.")
                     return false
                 }
@@ -211,12 +219,30 @@ object AutomationController {
             val success = ShizukuController.setNetworkModeSilently(target)
             if (success) {
                 onAutomationSuccess(context, target)
-            } else if (fallbackToA11y && isAccessibilityServiceEnabled(context)) {
-                Log.d(TAG, "Shizuku silent switch failed, falling back to Accessibility UI automation...")
-                activeEngineUsed = "Accessibility (Fallback)"
-                executeAccessibilitySwitch(context, target)
+            } else if (fallbackToA11y) {
+                Log.d(TAG, "Shizuku silent switch not applied by modem, attempting Accessibility fallback...")
+                if (!isAccessibilityServiceEnabled(context)) {
+                    val enabledViaShizuku = ShizukuController.enableAccessibilityServiceViaShizuku(context)
+                    if (enabledViaShizuku) {
+                        delay(350)
+                        checkAccessibilityEnabled(context)
+                    }
+                }
+
+                if (isAccessibilityServiceEnabled(context)) {
+                    activeEngineUsed = "Accessibility (Smart Fallback)"
+                    withContext(Dispatchers.Main) {
+                        executeAccessibilitySwitch(context, target)
+                    }
+                } else {
+                    _automationStatus.value = AutomationStatus.Error(
+                        "Silent switch not supported on this phone. Please enable Accessibility Service for 1-second auto switch."
+                    )
+                }
             } else {
-                _automationStatus.value = AutomationStatus.Error("Silent Shizuku switch failed to apply.")
+                _automationStatus.value = AutomationStatus.Error(
+                    "Silent switch not supported on this phone. Select Auto or Accessibility Engine."
+                )
             }
         }
     }
