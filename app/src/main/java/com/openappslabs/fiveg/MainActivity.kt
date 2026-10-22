@@ -1,5 +1,6 @@
 package com.openappslabs.fiveg
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -13,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +31,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,6 +54,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,6 +63,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +81,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.openappslabs.fiveg.automation.AutomationController
 import com.openappslabs.fiveg.automation.AutomationStatus
 import com.openappslabs.fiveg.automation.CurrentNetworkState
+import com.openappslabs.fiveg.automation.EngineMode
+import com.openappslabs.fiveg.automation.ShizukuController
 import com.openappslabs.fiveg.automation.TargetMode
 import com.openappslabs.fiveg.ui.theme.FiveGTheme
 import com.openappslabs.fiveg.ui.theme.Green5G
@@ -95,17 +108,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
+    val activity = context as? Activity
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val currentMode by AutomationController.currentNetworkState.collectAsState()
     val automationStatus by AutomationController.automationStatus.collectAsState()
+    val selectedEngine by AutomationController.selectedEngine.collectAsState()
     val isAccessibilityEnabled by AutomationController.isAccessibilityEnabled.collectAsState()
+    val shizukuState by ShizukuController.state.collectAsState()
 
-    // Automatically refresh accessibility state whenever the user returns to the app
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 AutomationController.checkAccessibilityEnabled(context)
+                ShizukuController.checkState(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -121,15 +137,29 @@ fun MainScreen() {
             CenterAlignedTopAppBar(
                 title = {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "5G NR Switcher",
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.ExtraBold
                             )
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Text(
+                                text = "v2.1.0",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -142,38 +172,40 @@ fun MainScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 18.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // 1. Accessibility Service Warning / Setup Banner
-            AnimatedVisibility(
-                visible = !isAccessibilityEnabled,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                AccessibilityBanner(
-                    onEnableClick = {
-                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        context.startActivity(intent)
-                    }
-                )
-            }
-
-            // 2. Current Automation Status Card
+            // 1. Current Automation Status Card
             StatusDisplayCard(
                 networkState = currentMode,
                 automationStatus = automationStatus
             )
 
-            // 3. Prominent Control Panel: Start & Stop Buttons
+            // 2. Specific Engine Selector (User Choice: Auto / Shizuku / Accessibility)
+            SpecificEngineSelectorCard(
+                selectedEngine = selectedEngine,
+                shizukuState = shizukuState,
+                isAccessibilityEnabled = isAccessibilityEnabled,
+                onEngineSelected = { engine ->
+                    AutomationController.setEngineMode(context, engine)
+                },
+                onRequestShizukuPermission = {
+                    activity?.let { ShizukuController.requestPermission(it) }
+                },
+                onOpenAccessibilitySettings = {
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
+            )
+
+            // 3. Prominent Start / Stop Controls
             ControlPanel(
                 isRunning = isRunning,
-                isAccessibilityEnabled = isAccessibilityEnabled,
                 onStartClick = {
                     AutomationController.start5GLock(context)
                 },
@@ -182,17 +214,17 @@ fun MainScreen() {
                 }
             )
 
-            // 4. Quick Settings Tile Integration Tip Card
-            QuickSettingsTipCard()
+            // 4. Quick Settings Tile Tip Card
+            QuickSettingsTipCard(selectedEngine = selectedEngine)
 
-            // 5. Diagnostic Fallback Option
+            // 5. Diagnostic Manual Fallback
             OutlinedButton(
                 onClick = {
                     AutomationController.launchRadioInfo(context)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 2.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
@@ -211,76 +243,191 @@ fun MainScreen() {
 }
 
 /**
- * Material 3 Banner displayed when the Accessibility Service is disabled.
+ * Card providing explicit, specific choice of the switching engine.
  */
 @Composable
-fun AccessibilityBanner(
-    onEnableClick: () -> Unit
+fun SpecificEngineSelectorCard(
+    selectedEngine: EngineMode,
+    shizukuState: com.openappslabs.fiveg.automation.ShizukuState,
+    isAccessibilityEnabled: Boolean,
+    onEngineSelected: (EngineMode) -> Unit,
+    onRequestShizukuPermission: () -> Unit,
+    onOpenAccessibilitySettings: () -> Unit
 ) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Warning,
+                    imageVector = Icons.Default.Settings,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(26.dp)
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Auto-Switch Service Disabled",
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    text = "SPECIFIC SWITCHING ENGINE",
+                    style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onErrorContainer
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 )
             }
 
-            Text(
-                text = "1-second automated switching requires the '5G Auto-Switcher' accessibility service to select the network type in RadioInfo and return automatically.",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
+            // Engine Option 1: AUTO (Smart Fallback)
+            EngineOptionItem(
+                title = "Auto (Smart Fallback)",
+                subtitle = "Uses Shizuku (silent 50ms) if active, else Accessibility (1-sec UI)",
+                badgeText = "Recommended",
+                badgeColor = MaterialTheme.colorScheme.primary,
+                isSelected = selectedEngine == EngineMode.AUTO,
+                onClick = { onEngineSelected(EngineMode.AUTO) }
             )
 
-            Button(
-                onClick = onEnableClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            // Engine Option 2: SHIZUKU ONLY (Pure Silent Background)
+            EngineOptionItem(
+                title = "Shizuku Engine (Pure Silent)",
+                subtitle = "Invisible 50ms background switch. Never opens RadioInfo or flashes screen.",
+                badgeText = if (shizukuState.isRunning && shizukuState.isPermissionGranted) "Active 🟢" else "Needs Setup 🟡",
+                badgeColor = if (shizukuState.isRunning && shizukuState.isPermissionGranted) Green5G else Color(0xFFEAB308),
+                isSelected = selectedEngine == EngineMode.SHIZUKU_ONLY,
+                onClick = { onEngineSelected(EngineMode.SHIZUKU_ONLY) }
+            )
+
+            // Engine Option 3: ACCESSIBILITY ONLY (UI Automation)
+            EngineOptionItem(
+                title = "Accessibility Engine (UI Auto)",
+                subtitle = "Automated 1-second RadioInfo screen click. No Shizuku/ADB needed.",
+                badgeText = if (isAccessibilityEnabled) "Ready 🟢" else "Disabled 🔴",
+                badgeColor = if (isAccessibilityEnabled) Green5G else MaterialTheme.colorScheme.error,
+                isSelected = selectedEngine == EngineMode.A11Y_ONLY,
+                onClick = { onEngineSelected(EngineMode.A11Y_ONLY) }
+            )
+
+            // Dynamic Action / Setup Button based on selected engine
+            when (selectedEngine) {
+                EngineMode.SHIZUKU_ONLY, EngineMode.AUTO -> {
+                    if (shizukuState.isRunning && !shizukuState.isPermissionGranted) {
+                        Button(
+                            onClick = onRequestShizukuPermission,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Grant Shizuku Permission")
+                        }
+                    } else if (!shizukuState.isRunning && selectedEngine == EngineMode.SHIZUKU_ONLY) {
+                        Text(
+                            text = "⚠️ Shizuku service is not running. Please open the Shizuku app and start it via Wireless Debugging, or select Auto mode.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.error)
+                        )
+                    }
+                }
+
+                EngineMode.A11Y_ONLY -> {
+                    if (!isAccessibilityEnabled) {
+                        Button(
+                            onClick = onOpenAccessibilitySettings,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Enable Auto-Switch Accessibility Service")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EngineOptionItem(
+    title: String,
+    subtitle: String,
+    badgeText: String,
+    badgeColor: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onClick,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = badgeColor.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = badgeColor
+                            ),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Enable Auto-Switch Service",
-                    fontWeight = FontWeight.SemiBold
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
                 )
             }
-
-            Text(
-                text = "Tip: Tap above > Installed/Downloaded Apps > '5G Auto-Switcher' > Turn ON",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                )
-            )
         }
     }
 }
 
 /**
- * Prominent Status Card displaying the active network automation state.
+ * Status Card displaying the active network automation state and engine feedback.
  */
 @Composable
 fun StatusDisplayCard(
@@ -317,9 +464,9 @@ fun StatusDisplayCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(22.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 text = "CURRENT NETWORK MODE",
@@ -330,14 +477,13 @@ fun StatusDisplayCard(
                 )
             )
 
-            // Status Icon & Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(contentColor.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
@@ -350,7 +496,7 @@ fun StatusDisplayCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
                     text = when (networkState) {
@@ -365,21 +511,19 @@ fun StatusDisplayCard(
                 )
             }
 
-            // Description
             Text(
                 text = when (networkState) {
                     CurrentNetworkState.NR_ONLY_LOCKED ->
-                        "Connection locked strictly to 5G Standalone (NR Only). LTE fallback is disabled for pure 5G speed & low latency."
+                        "Connected strictly to 5G Standalone (NR Only). LTE fallback disabled."
                     CurrentNetworkState.NORMAL_AUTO ->
-                        "Standard hybrid auto mode (NR/LTE/GSM). Allows seamless cellular calling, VoLTE, and automatic band roaming."
+                        "Standard hybrid auto mode (NR/LTE/GSM). Allows seamless cellular calling & roaming."
                     CurrentNetworkState.UNKNOWN ->
-                        "Tap 'Start 5G Lock' or 'Stop' below to initiate automated network switching."
+                        "Tap 'Start 5G Lock' or 'Stop' below to switch network modes."
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(color = contentColor),
                 textAlign = TextAlign.Center
             )
 
-            // Execution / Switch Feedback
             when (automationStatus) {
                 is AutomationStatus.Running -> {
                     Row(
@@ -387,16 +531,16 @@ fun StatusDisplayCard(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 6.dp)
+                            .padding(top = 4.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
                             color = contentColor
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Automating RadioInfo switch...",
+                            text = "Switching via ${automationStatus.engineName}...",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = contentColor
@@ -409,15 +553,15 @@ fun StatusDisplayCard(
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = contentColor.copy(alpha = 0.12f),
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     ) {
                         Text(
-                            text = "⚡ Switched to ${if (automationStatus.target == TargetMode.NR_ONLY) "NR Only" else "Normal Mode"} in ${automationStatus.elapsedMs}ms",
+                            text = "⚡ Switched to ${if (automationStatus.target == TargetMode.NR_ONLY) "NR Only" else "Normal Mode"} via ${automationStatus.engineName} in ${automationStatus.elapsedMs}ms",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = contentColor
                             ),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -449,18 +593,17 @@ fun StatusDisplayCard(
 }
 
 /**
- * Prominent Control Panel with Start & Stop buttons.
+ * Prominent Control Panel: Start & Stop buttons.
  */
 @Composable
 fun ControlPanel(
     isRunning: Boolean,
-    isAccessibilityEnabled: Boolean,
     onStartClick: () -> Unit,
     onStopClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
             text = "AUTOMATION CONTROLS",
@@ -477,7 +620,7 @@ fun ControlPanel(
             enabled = !isRunning,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp),
+                .height(64.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -492,7 +635,7 @@ fun ControlPanel(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
@@ -500,10 +643,10 @@ fun ControlPanel(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
                         text = "Start 5G Lock (NR Only)",
@@ -512,7 +655,7 @@ fun ControlPanel(
                         )
                     )
                     Text(
-                        text = "Locks to pure 5G NR in ~1s",
+                        text = "Direct lock to pure 5G Standalone",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )
@@ -527,7 +670,7 @@ fun ControlPanel(
             enabled = !isRunning,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp),
+                .height(64.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.filledTonalButtonColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -541,7 +684,7 @@ fun ControlPanel(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
@@ -549,10 +692,10 @@ fun ControlPanel(
                     Icon(
                         imageVector = Icons.Default.LockOpen,
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
                         text = "Stop (Restore Normal NR/LTE)",
@@ -561,7 +704,7 @@ fun ControlPanel(
                         )
                     )
                     Text(
-                        text = "Restores hybrid network mode in ~1s",
+                        text = "Restores hybrid network mode for calling",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                         )
@@ -572,39 +715,39 @@ fun ControlPanel(
     }
 }
 
-/**
- * Instructional card explaining the Quick Settings 1-Tap Tile.
- */
 @Composable
-fun QuickSettingsTipCard() {
+fun QuickSettingsTipCard(selectedEngine: EngineMode) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             )
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "1-Tap Quick Settings Tile Available",
+                    text = "1-Tap Quick Settings Tile",
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold
                     )
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Swipe down your status bar, tap edit (pencil), and drag the '5G Switcher' tile for instant 1-tap switching anytime.",
+                    text = if (selectedEngine == EngineMode.SHIZUKU_ONLY || selectedEngine == EngineMode.AUTO)
+                        "With Shizuku active, tapping the Quick Settings tile switches 5G completely silently in the background without opening the screen!"
+                    else
+                        "Swipe down your status bar and tap the '5G Switcher' tile for instant 1-tap switching anywhere.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

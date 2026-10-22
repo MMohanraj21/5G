@@ -85,11 +85,21 @@ class FiveGQuickTileService : TileService() {
     override fun onClick() {
         super.onClick()
 
-        // 1. Check if Accessibility Service is enabled
-        if (!AutomationController.isAccessibilityServiceEnabled(this)) {
+        // 1. Check if an automation engine is ready
+        val shizukuReady = com.openappslabs.fiveg.automation.ShizukuController.checkState(this).let { it.isRunning && it.isPermissionGranted }
+        val a11yReady = AutomationController.isAccessibilityServiceEnabled(this)
+        val engine = AutomationController.selectedEngine.value
+
+        val canAutomate = when (engine) {
+            com.openappslabs.fiveg.automation.EngineMode.SHIZUKU_ONLY -> shizukuReady
+            com.openappslabs.fiveg.automation.EngineMode.A11Y_ONLY -> a11yReady
+            com.openappslabs.fiveg.automation.EngineMode.AUTO -> shizukuReady || a11yReady
+        }
+
+        if (!canAutomate) {
             Toast.makeText(
                 this,
-                "Please enable 5G Auto-Switcher in Accessibility Settings",
+                "Please enable Shizuku or Accessibility Service",
                 Toast.LENGTH_LONG
             ).show()
 
