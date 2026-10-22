@@ -1,0 +1,61 @@
+name: Build 5G Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 5G-AutoSwitcher-Debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: v2.0.0
+          name: "5G NR 1-Second Auto-Switcher v2.0.0"
+          body: |
+            ## ⚡ 5G NR 1-Second Auto-Switcher APK
+            - **Automated Accessibility Switcher**: 1-Second switch to 5G NR Only and Normal Mode.
+            - **Jetpack Compose UI**: Material 3 with Dynamic Colors (Android 10 - 14 / API 29 - 34).
+            - **Quick Settings Tile**: 1-Tap toggle straight from the notification shade.
+            
+            ### 📲 Installation:
+            Download `5G-AutoSwitcher.apk` below and open it to install!
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

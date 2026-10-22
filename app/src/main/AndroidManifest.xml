@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Essential package visibility declarations for Android 11+ (API 30+) -->
+    <queries>
+        <package android:name="com.android.phone" />
+        <package android:name="com.android.settings" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_5g"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_5g"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FiveG">
+
+        <!-- Main UI Activity (Jetpack Compose, M3 Dynamic Colors) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 1-Second Automated Switcher Accessibility Service -->
+        <service
+            android:name=".services.FiveGAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="@string/accessibility_service_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- Quick Settings 1-Tap Toggle Tile -->
+        <service
+            android:name=".services.FiveGQuickTileService"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:label="@string/tile_label"
+            android:icon="@drawable/ic_5g"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>
