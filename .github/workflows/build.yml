@@ -43,13 +43,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v2.1.1
-          name: "5G NR 1-Second Auto-Switcher v2.1.1"
+          tag_name: v2.1.2
+          name: "5G NR 1-Second Auto-Switcher v2.1.2"
           body: |
-            ## ⚡ 5G NR 1-Second Auto-Switcher v2.1.1
+            ## ⚡ 5G NR 1-Second Auto-Switcher v2.1.2
+            - **Vivo / OEM Modem Special Compatibility**: Auto-detects Vivo/iQOO and automatically falls back to 1-second UI automation.
+            - **Universal Package Support**: Removed package filter restrictions so Vivo, Xiaomi, Oppo, and Samsung dialer testing menus are supported.
+            - **Shizuku Elevated Launcher**: Bypasses OEM restrictions on unexported RadioInfo activities using privileged ADB shell launch.
             - **Shizuku ITelephony & Binder Wrapper**: Native elevated telephony IPC for 5G NR locking.
             - **1-Tap Enable Accessibility via Shizuku**: Automatically grants and enables Accessibility Service without digging through system menus.
-            - **Seamless Auto Fallback**: If device modem rejects direct shell changes, auto-switches via 1-second Accessibility engine.
             - **Specific Engine Selector**: Choose between Auto (Smart Fallback), Shizuku Only, or Accessibility Only.
             - **Jetpack Compose Material 3 Dynamic Colors** (Android 10 - 14 / API 29 - 34).
             

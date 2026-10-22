@@ -152,7 +152,7 @@ fun MainScreen() {
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Text(
-                                text = "v2.1.1",
+                                text = "v2.1.2",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -369,7 +369,7 @@ fun SpecificEngineSelectorCard(
             // Guidance when Shizuku Only is selected
             if (selectedEngine == EngineMode.SHIZUKU_ONLY) {
                 Text(
-                    text = "💡 Note: On some devices (Realme/OnePlus/Oppo/Xiaomi), the manufacturer modem blocks direct shell commands. If silent mode fails on your phone, choose 'Auto (Smart Fallback)' or 'Accessibility Engine'.",
+                    text = "💡 Note: On Vivo, iQOO, Realme, and Oppo devices, the manufacturer modem blocks direct background shell commands. The app automatically uses the 1-second 'Accessibility Engine' to switch network modes safely!",
                     style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                 )
             }

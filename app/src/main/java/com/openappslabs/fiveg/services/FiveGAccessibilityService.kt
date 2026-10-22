@@ -60,7 +60,13 @@ class FiveGAccessibilityService : AccessibilityService() {
         }
 
         val pkgName = event?.packageName?.toString() ?: return
-        if (pkgName != "com.android.phone" && pkgName != "com.android.settings") {
+        val isAllowedPackage = pkgName == "com.android.phone" ||
+                pkgName == "com.android.settings" ||
+                pkgName.contains("phone") ||
+                pkgName.contains("settings") ||
+                pkgName.contains("vivo") ||
+                pkgName.contains("bbk")
+        if (!isAllowedPackage) {
             return
         }
 

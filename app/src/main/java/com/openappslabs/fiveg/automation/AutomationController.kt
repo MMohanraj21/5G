@@ -98,11 +98,21 @@ object AutomationController {
             else -> CurrentNetworkState.UNKNOWN
         }
 
-        val savedEngine = prefs.getString(KEY_ENGINE_MODE, EngineMode.AUTO.name)
+        val isVivo = Build.MANUFACTURER.contains("vivo", ignoreCase = true) ||
+                     Build.BRAND.contains("vivo", ignoreCase = true) ||
+                     Build.MANUFACTURER.contains("iqoo", ignoreCase = true)
+
+        val defaultMode = if (isVivo) EngineMode.A11Y_ONLY.name else EngineMode.AUTO.name
+        val savedEngine = prefs.getString(KEY_ENGINE_MODE, defaultMode)
         _selectedEngine.value = try {
-            EngineMode.valueOf(savedEngine ?: EngineMode.AUTO.name)
+            val parsed = EngineMode.valueOf(savedEngine ?: defaultMode)
+            if (isVivo && parsed == EngineMode.SHIZUKU_ONLY) {
+                EngineMode.A11Y_ONLY
+            } else {
+                parsed
+            }
         } catch (e: Exception) {
-            EngineMode.AUTO
+            if (isVivo) EngineMode.A11Y_ONLY else EngineMode.AUTO
         }
 
         ShizukuController.init(context)
@@ -241,9 +251,18 @@ object AutomationController {
                     )
                 }
             } else {
-                _automationStatus.value = AutomationStatus.Error(
-                    "Silent switch not supported on this phone. Select Auto or Accessibility Engine."
-                )
+                // If Shizuku Only was selected, but fails on this phone (e.g., Vivo):
+                if (isAccessibilityServiceEnabled(context)) {
+                    Log.d(TAG, "Silent switch failed, but Accessibility is ready. Auto-switching for user convenience...")
+                    activeEngineUsed = "Accessibility (Auto-Switched)"
+                    withContext(Dispatchers.Main) {
+                        executeAccessibilitySwitch(context, target)
+                    }
+                } else {
+                    _automationStatus.value = AutomationStatus.Error(
+                        "Vivo/OEM modem blocks background shell commands. Please select 'Accessibility Engine' (UI Auto)."
+                    )
+                }
             }
         }
     }
@@ -303,7 +322,10 @@ object AutomationController {
             ComponentName("com.android.settings", "com.android.settings.RadioInfo"),
             ComponentName("com.android.settings", "com.android.settings.Settings\$RadioInfoActivity"),
             ComponentName("com.android.settings", "com.android.settings.TestingSettings"),
-            ComponentName("com.android.phone", "com.android.phone.RadioInfo")
+            ComponentName("com.android.phone", "com.android.phone.RadioInfo"),
+            ComponentName("com.vivo.phone", "com.vivo.phone.settings.RadioInfo"),
+            ComponentName("com.vivo.phone", "com.vivo.phone.RadioInfo"),
+            ComponentName("com.vivo.settings", "com.vivo.settings.RadioInfo")
         )
 
         for (targetComponent in candidates) {
@@ -319,6 +341,25 @@ object AutomationController {
                 return true
             } catch (e: Exception) {
                 Log.d(TAG, "Component $targetComponent not available: ${e.message}")
+            }
+        }
+
+        // Shizuku elevated shell launch (bypasses OEM restrictions on unexported activities)
+        val shizukuState = ShizukuController.checkState(context)
+        if (shizukuState.isRunning && shizukuState.isPermissionGranted) {
+            val shellCommands = listOf(
+                "am start -n com.android.phone/.settings.RadioInfo",
+                "am start -n com.android.phone/com.android.phone.settings.RadioInfo",
+                "am start -n com.android.settings/.RadioInfo",
+                "am start -n com.vivo.phone/.settings.RadioInfo",
+                "am start -a android.intent.action.MAIN -n com.android.phone/.settings.RadioInfo"
+            )
+            for (cmd in shellCommands) {
+                val out = ShizukuController.executeShell(cmd)
+                if (!out.contains("error", ignoreCase = true) && !out.contains("Exception", ignoreCase = true)) {
+                    Log.d(TAG, "Launched RadioInfo via Shizuku shell: $cmd")
+                    return true
+                }
             }
         }
 
