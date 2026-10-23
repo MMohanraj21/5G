@@ -43,17 +43,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v2.1.2
-          name: "5G NR 1-Second Auto-Switcher v2.1.2"
+          tag_name: v2.1.3
+          name: "5G NR 1-Second Auto-Switcher v2.1.3"
           body: |
-            ## ⚡ 5G NR 1-Second Auto-Switcher v2.1.2
-            - **Vivo / OEM Modem Special Compatibility**: Auto-detects Vivo/iQOO and automatically falls back to 1-second UI automation.
-            - **Universal Package Support**: Removed package filter restrictions so Vivo, Xiaomi, Oppo, and Samsung dialer testing menus are supported.
-            - **Shizuku Elevated Launcher**: Bypasses OEM restrictions on unexported RadioInfo activities using privileged ADB shell launch.
-            - **Shizuku ITelephony & Binder Wrapper**: Native elevated telephony IPC for 5G NR locking.
-            - **1-Tap Enable Accessibility via Shizuku**: Automatically grants and enables Accessibility Service without digging through system menus.
-            - **Specific Engine Selector**: Choose between Auto (Smart Fallback), Shizuku Only, or Accessibility Only.
-            - **Jetpack Compose Material 3 Dynamic Colors** (Android 10 - 14 / API 29 - 34).
+            ## ⚡ 5G NR 1-Second Auto-Switcher v2.1.3
+            - **Vivo OriginOS / FuntouchOS Shizuku Automation Fixed**:
+              - Direct AOSP `cmd phone set-allowed-network-types-for-users` execution for instant background modem switching.
+              - Unblocks Android hidden API policy dynamically (`hidden_api_policy 1`) for elevated telephony access.
+              - Resolves active multi-SIM `subId`s dynamically via `SubscriptionManager`.
+              - Uses privileged `com.android.shell` (UID 2000) for native `ITelephony` Binder transactions.
+              - Multi-SIM and OEM global settings synchronization.
+            - **Universal Package Support**: Supports Vivo, Xiaomi, Oppo, OnePlus, and Samsung dialer testing menus.
+            - **1-Tap Enable Accessibility via Shizuku**: Auto-grants accessibility permissions silently.
+            - **Specific Engine Selector**: Auto (Smart Fallback), Shizuku Only (Pure Background), or Accessibility Only (1-Sec UI).
             
             ### 📲 Installation:
             Download `app-debug.apk` below and open it on your Android phone!

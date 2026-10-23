@@ -11,8 +11,8 @@ android {
         applicationId = "com.openappslabs.fiveg"
         minSdk = 29
         targetSdk = 34
-        versionCode = 5
-        versionName = "2.1.2"
+        versionCode = 6
+        versionName = "2.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

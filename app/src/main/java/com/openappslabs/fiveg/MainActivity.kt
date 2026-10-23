@@ -152,7 +152,7 @@ fun MainScreen() {
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Text(
-                                text = "v2.1.2",
+                                text = "v2.1.3",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer

@@ -227,7 +227,7 @@ object AutomationController {
 
     private fun executeShizukuSilent(context: Context, target: TargetMode, fallbackToA11y: Boolean = false) {
         scope.launch {
-            val success = ShizukuController.setNetworkModeSilently(target)
+            val success = ShizukuController.setNetworkModeSilently(context, target)
             if (success) {
                 onAutomationSuccess(context, target)
             } else if (fallbackToA11y) {
