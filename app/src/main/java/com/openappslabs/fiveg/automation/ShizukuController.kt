@@ -387,7 +387,20 @@ object ShizukuController {
 
     fun executeShell(command: String): String {
         return try {
-            val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+            val clazz = Class.forName("rikka.shizuku.Shizuku")
+            val newProcessMethod = clazz.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            newProcessMethod.isAccessible = true
+            val process = newProcessMethod.invoke(
+                null,
+                arrayOf("sh", "-c", command),
+                null,
+                null
+            ) as java.lang.Process
             val output = process.inputStream.bufferedReader().use { it.readText() }
             val error = process.errorStream.bufferedReader().use { it.readText() }
             val exitCode = process.waitFor()
@@ -396,28 +409,8 @@ object ShizukuController {
             }
             if (output.isNotBlank()) output.trim() else error.trim()
         } catch (e: Throwable) {
-            try {
-                val clazz = Class.forName("rikka.shizuku.Shizuku")
-                val newProcessMethod = clazz.getDeclaredMethod(
-                    "newProcess",
-                    Array<String>::class.java,
-                    Array<String>::class.java,
-                    String::class.java
-                )
-                newProcessMethod.isAccessible = true
-                val process = newProcessMethod.invoke(
-                    null,
-                    arrayOf("sh", "-c", command),
-                    null,
-                    null
-                ) as java.lang.Process
-                val output = process.inputStream.bufferedReader().use { it.readText() }
-                process.waitFor()
-                output.trim()
-            } catch (ex: Throwable) {
-                Log.e(TAG, "Shell execution failed: ${ex.message}", ex)
-                "error: ${ex.message}"
-            }
+            Log.e(TAG, "Shell execution failed: ${e.message}", e)
+            "error: ${e.message}"
         }
     }
 }
